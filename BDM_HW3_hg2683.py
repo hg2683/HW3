@@ -29,35 +29,32 @@ def extractFeatures(partId, records):
         (year, product, company) = (row[1].lower(), int(row[0][0:4]), row[7].title())
         yield (year, product, company)
 
-def main():
-  COMPLAINTS_FN = input_file
-  complaints = sc.textFile(COMPLAINTS_FN, use_unicode=True).cache()
-  company = complaints.mapPartitionsWithIndex(extractFeatures)
-  counts = company.map(lambda x:((x[0],x[1],x[2]),1)).\
+input_file = sys.argv[1]
+output_file = sys.argv[2]
+complaints = sc.textFile(input_file, use_unicode=True).cache()
+company = complaints.mapPartitionsWithIndex(extractFeatures)
+counts = company.map(lambda x:((x[0],x[1],x[2]),1)).\
                   reduceByKey(lambda x,y: x+y).\
                   map(lambda x: ((x[0][0], x[0][1]),1)).\
                   reduceByKey(lambda x,y: x+y)
-  header = complaints.first()
-  complaints_rdd = complaints.filter(lambda row: row != header)
-  complaints_kv_rdd = complaints_rdd.map(lambda row: row.split(',')) 
-  complaints_kv_rdd1 = complaints_kv_rdd.filter(lambda row: row[0] != '')
-  complaints_kv_rdd2 = complaints_kv_rdd1.filter(lambda row: row[0][0] == '2')
-  complaints_kv_rdd3 = complaints_kv_rdd2.filter(lambda row: row[0][1] == '0')
-  complaints_kv_rdd3 = complaints_kv_rdd3.filter(lambda row: row[-1][0] != ' ')
-  complaints_kv_rdd3 = complaints_kv_rdd3.filter(lambda row: row[-1][0] != '"')
-  complaints_kv_rdd4 = complaints_kv_rdd3.map(lambda row: ((row[1].lower(), int(row[0][:4])), 1))
-  complaints_by_year = complaints_kv_rdd4.reduceByKey(lambda x, y: x + y)
+header = complaints.first()
+complaints_rdd = complaints.filter(lambda row: row != header)
+complaints_kv_rdd = complaints_rdd.map(lambda row: row.split(',')) 
+complaints_kv_rdd1 = complaints_kv_rdd.filter(lambda row: row[0] != '')
+complaints_kv_rdd2 = complaints_kv_rdd1.filter(lambda row: row[0][0] == '2')
+complaints_kv_rdd3 = complaints_kv_rdd2.filter(lambda row: row[0][1] == '0')
+complaints_kv_rdd3 = complaints_kv_rdd3.filter(lambda row: row[-1][0] != ' ')
+complaints_kv_rdd3 = complaints_kv_rdd3.filter(lambda row: row[-1][0] != '"')
+complaints_kv_rdd4 = complaints_kv_rdd3.map(lambda row: ((row[1].lower(), int(row[0][:4])), 1))
+complaints_by_year = complaints_kv_rdd4.reduceByKey(lambda x, y: x + y)
   
-  merged_rdd = complaints_by_year.join(counts)
-  new_rdd = merged_rdd.map(lambda x: (x[0][0],x[0][1],x[1][0],x[1][1],round((x[1][1] / x[1][0]) * 100)))
-  result = new_rdd.collect()
-  result.sort(key=lambda x: (x[0], x[1]))
-  output = []
-  for item in result:
-    output.append(','.join(str(i) for i in item))
-  outputTask1 = sc.parallelize(output)
-  print(outputTask1.collect())
-
-if __name__ == "__main__":
-  input_file = sys.argv[1]
-  main()
+merged_rdd = complaints_by_year.join(counts)
+new_rdd = merged_rdd.map(lambda x: (x[0][0],x[0][1],x[1][0],x[1][1],round((x[1][1] / x[1][0]) * 100)))
+result = new_rdd.collect()
+result.sort(key=lambda x: (x[0], x[1]))
+output = []
+for item in result:
+  output.append(','.join(str(i) for i in item))
+outputTask1 = sc.parallelize(output)
+outputTask1.take(20)
+outputTask1.saveAsTextFile(sys.argv[2])
