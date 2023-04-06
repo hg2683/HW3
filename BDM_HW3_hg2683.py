@@ -56,7 +56,7 @@ def main():
   for item in result:
     output.append(','.join(str(i) for i in item))
   outputTask1 = sc.parallelize(output)
-  print(outputTask1)
+  print(outputTask1.collect())
 
 if __name__ == "__main__":
-  input_path = sys.argv[1]
+  main()
