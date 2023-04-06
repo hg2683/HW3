@@ -30,7 +30,7 @@ def extractFeatures(partId, records):
         yield (year, product, company)
 
 def main():
-  COMPLAINTS_FN = 'complaints_sample.csv'
+  COMPLAINTS_FN = input_file
   complaints = sc.textFile(COMPLAINTS_FN, use_unicode=True).cache()
   company = complaints.mapPartitionsWithIndex(extractFeatures)
   counts = company.map(lambda x:((x[0],x[1],x[2]),1)).\
@@ -59,5 +59,5 @@ def main():
   print(outputTask1.collect())
 
 if __name__ == "__main__":
-  input_path = sys.argv[1]
+  input_file = sys.argv[1]
   main()
